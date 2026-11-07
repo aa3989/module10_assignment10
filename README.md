@@ -180,7 +180,7 @@ The test workflow generates a temporary JWT test secret. Do not put secrets in w
 
 ## Docker Hub image
 
-**Docker Hub repository:** [](https://hub.docker.com/repository/docker/aby3989/assignment10/general)
+**Docker Hub repository:** [aby3989/assignment10](https://hub.docker.com/repository/docker/aby3989/assignment10/general)
 
 
 After the first successful deployment, pull and run the image:
@@ -190,13 +190,4 @@ docker pull aby3989/assignment10:latest
 ```
 
 The published API requires a reachable PostgreSQL database and a secure JWT secret. Provide `DATABASE_URL` and `SECRET_KEY` through your runtime environment (for example, Docker Compose or an environment file excluded from Git). An image alone does not start PostgreSQL.
-
-## Security notes
-
-- Store only password hashes in `password_hash`—never raw passwords.
-- Never include `password_hash` in user response schemas.
-- Keep `.env`, credentials, access tokens, and `.venv` out of Git and Docker image build contexts.
-- Use a randomly generated `SECRET_KEY` and keep development, test, and production secrets separate.
-- Database credentials in `docker-compose.yml` are for local development; replace them for any public deployment.
-
 

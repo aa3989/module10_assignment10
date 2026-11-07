@@ -33,7 +33,6 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fastapi_test_db
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fastapi_test_db
-      SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
 
@@ -46,6 +45,9 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
+      - name: Generate JWT test secret
+        run: |
+          echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$GITHUB_ENV"
 
       - name: Install Python dependencies
         run: |
@@ -55,10 +57,34 @@ jobs:
 
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
+    
+      - name: Start FastAPI server
+        run: |
+          nohup python -m uvicorn main:app \
+            --host 127.0.0.1 \
+            --port 8000 > fastapi.log 2>&1 &
+
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/ > /dev/null; then
+              echo "FastAPI server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "FastAPI server failed to start"
+          cat fastapi.log
+          exit 1
 
       - name: Run all tests with coverage
         run: python -m pytest --run-slow -v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=100
 
+      - name: Show FastAPI logs on failure
+        if: failure()
+        run: |
+          echo "=== FastAPI Server Logs ==="
+          cat fastapi.log || true
+          
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v5

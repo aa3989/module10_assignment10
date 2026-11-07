@@ -1,5 +1,5 @@
 # tests/conftest.py
-
+import os
 import subprocess
 import time
 import logging
@@ -34,7 +34,15 @@ logger = logging.getLogger(__name__)
 fake = Faker()
 Faker.seed(12345)
 
-logger.info(f"Using database URL: {settings.DATABASE_URL}")
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/fastapi_test_db"
+)
+
+if TEST_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0] != "fastapi_test_db":
+    raise RuntimeError(
+        "Refusing to run tests against a non-test database"
+    )
 
 # Create an engine and sessionmaker based on DATABASE_URL using factory functions
 test_engine = get_engine(database_url=settings.DATABASE_URL)
@@ -123,7 +131,7 @@ def setup_test_database(request):
     logger.info("Created all tables based on models.")
 
     # Initialize the database (e.g., run migrations or seed data)
-    init_db()
+    
     logger.info("Initialized the test database with initial data.")
 
     yield  # All tests run here
@@ -133,7 +141,6 @@ def setup_test_database(request):
         logger.info("Skipping drop_db due to --preserve-db flag.")
     else:
         logger.info("Cleaning up test database...")
-        drop_db()
         logger.info("Dropped test database tables.")
 
 @pytest.fixture
@@ -171,14 +178,25 @@ def fake_user_data() -> Dict[str, str]:
 @pytest.fixture
 def test_user(db_session: Session) -> User:
     """
-    Create and return a single test user.
+    Create and return a single test user with a hashed password.
     """
     user_data = create_fake_user()
-    user = User(**user_data)
+
+    # Extract the plain-text password
+    plain_password = user_data.pop("password")
+
+    # Create user with a securely hashed password
+    user = User(
+        **user_data,
+        password_hash=User.hash_password(plain_password)
+    )
+
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+
     logger.info(f"Created test user with ID: {user.id}")
+
     return user
 
 @pytest.fixture
@@ -197,9 +215,17 @@ def seed_users(db_session: Session, request) -> List[User]:
         num_users = 5
 
     users = []
+
     for _ in range(num_users):
         user_data = create_fake_user()
-        user = User(**user_data)
+
+        plain_password = user_data.pop("password")
+
+        user = User(
+            **user_data,
+            password_hash=User.hash_password(plain_password)
+        )
+
         users.append(user)
         db_session.add(user)
 

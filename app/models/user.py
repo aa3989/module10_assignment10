@@ -13,14 +13,12 @@ from pydantic import ValidationError
 from app.schemas.base import UserCreate
 from app.schemas.user import UserResponse, Token
 from app.database import Base
+from app.config import settings
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Move to config
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -50,23 +48,45 @@ class User(Base):
         return pwd_context.verify(plain_password, self.password_hash)
 
     @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def create_access_token(
+        data: dict,
+        expires_delta: Optional[timedelta] = None
+    ) -> str:
         """Create a JWT access token."""
+
         to_encode = data.copy()
-        expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+
+        expire = datetime.utcnow() + (
+            expires_delta
+            or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+
         to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+        return jwt.encode(
+            to_encode,
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM
+        )
 
     @staticmethod
-    def verify_token(token: str) -> Optional[UUID]:
+    def verify_token(token: str) -> Optional[uuid.UUID]:
         """Verify and decode a JWT token."""
+
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+
             user_id = payload.get("sub")
+
             return uuid.UUID(user_id) if user_id else None
+
         except (JWTError, ValueError):
             return None
-
+            
     @classmethod
     def register(cls, db, user_data: Dict[str, Any]) -> "User":
         """Register a new user with validation."""

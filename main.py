@@ -63,6 +63,11 @@ async def read_root(request: Request):
         name="index.html"
     )
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+    
 @app.post("/add", response_model=OperationResponse, responses={400: {"model": ErrorResponse}})
 async def add_route(operation: OperationRequest):
     """

@@ -45,7 +45,7 @@ if TEST_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0] != "fastapi_test_db":
     )
 
 # Create an engine and sessionmaker based on DATABASE_URL using factory functions
-test_engine = get_engine(database_url=settings.DATABASE_URL)
+test_engine = get_engine(database_url=TEST_DATABASE_URL)
 TestingSessionLocal = get_sessionmaker(engine=test_engine)
 
 # ======================================================================================
@@ -238,37 +238,18 @@ def seed_users(db_session: Session, request) -> List[User]:
 # ======================================================================================
 @pytest.fixture(scope="session")
 def fastapi_server():
-    """
-    Start and manage a FastAPI test server, if needed for integration tests.
-    """
-    server_url = 'http://127.0.0.1:8000/'
-    logger.info("Starting test server...")
+    """Use the FastAPI server started by CI or Docker."""
 
-    try:
-        process = subprocess.Popen(
-            ['python', 'main.py'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+    server_url = "http://127.0.0.1:8000/"
+
+    if not wait_for_server(server_url, timeout=30):
+        raise ServerStartupError(
+            f"FastAPI server is unavailable at {server_url}"
         )
-        if not wait_for_server(server_url, timeout=30):
-            raise ServerStartupError("Failed to start test server")
 
-        logger.info("Test server started successfully.")
-        yield  # Run all tests that depend on this fixture
+    logger.info("FastAPI server is ready.")
 
-    except Exception as e:
-        logger.error(f"Server error: {str(e)}")
-        raise
-    finally:
-        logger.info("Terminating test server...")
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-            logger.info("Test server terminated gracefully.")
-        except subprocess.TimeoutExpired:
-            logger.warning("Test server did not terminate in time; killing it.")
-            process.kill()
-
+    yield
 # ======================================================================================
 # Browser and Page Fixtures (Optional)
 # ======================================================================================

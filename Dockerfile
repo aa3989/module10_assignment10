@@ -15,7 +15,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     python -m pip install --no-cache-dir --upgrade \
         pip \
-        "setuptools>=78.1.1" \
+        "setuptools>=70.0.0" \
         wheel && \
     groupadd -r appgroup && \
     useradd -r -g appgroup appuser
@@ -23,8 +23,8 @@ RUN apt-get update && \
 # Install Python dependencies
 COPY requirements.txt .
 
-RUN python -m pip install --no-cache-dir \
-    -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt && \
+    python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
 
 # Copy application source
 COPY . .
